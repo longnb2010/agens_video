@@ -355,3 +355,9 @@ visual_qc:
 
 ---
 
+Mục 11 — Hướng dẫn sử dụng 6 image brand assets trong skill:
+
+4 logo variants (logo.png, Logo-Darkmode, Logo-Lightmode, Logo-Lightmode-Blue Background) — cách chọn theo nền, overlay góc phải dưới, scale
+2 VMS UI plates (vms_mobile.png, vms_pc.png) — pipeline overlay post-production, track màn hình, motion tracking
+Pipeline đề xuất từ T2V → QC → post-production
+Lưu ý: không dùng UI plate làm reference cho video, ưu tiên post overlay
