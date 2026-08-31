@@ -1,9 +1,4 @@
----
-name: agnes-video-brand
----
-
-# Agnes Video — Brand prompt SSOT (anti-text + continuity)
-
+# Agnes Video
 Skill **brand** cho mọi clip Agnes (VMS marketing, WEEK series, Reels 9:16).
 
 **Nguyên tắc vàng:** T2V / image ref **không** mang ngôn ngữ / UI / chữ thương hiệu — chỉ hình + ánh sáng + hành vi. Tiếng Việt = **narration + burn-in sub** (post).
