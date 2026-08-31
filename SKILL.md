@@ -26,6 +26,26 @@ generation_mode:
 
 ---
 
+### Bổ sung vào skill anh (Mục 0 — đầu skill)
+
+## 0. Quy trình xử lý ảnh upload (bắt buộc mỗi phiên)
+
+Khi có ảnh thật (upload) trong available materials, PHẢI:
+
+Bước 1: Đọc ảnh bằng read_image_for_prompt()
+  - focus: "logo, subject, outfit, scene, visible text, colors"
+  - Lấy chính xác facts từ ảnh thật
+
+Bước 2: Dùng ảnh làm reference image
+  - images: [{"ref": "img_xxxx", "role": "reference"}]
+  - KHÔNG chỉ dùng mã màu text thay thế cho logo thật
+
+Bước 3: Mô tả trong prompt dựa trên facts từ ảnh đã đọc
+  - VD: "VMS logo on the tablet" (từ ảnh thật)
+  - VD: "woman wearing a blue scrub top with embroidery" (từ ảnh thật)
+
+⚠️ Nếu bỏ qua → logo sai, nhân vật sai, bối cảnh sai
+
 ## 1. Vì sao cần anti-text
 
 | Triệu chứng | Nguyên nhân | Sửa ở đâu |
