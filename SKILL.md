@@ -1,16 +1,10 @@
 ---
 name: agnes-video-brand
-description: >-
-  Agnes Video 2.5 Flash + Image 2.1 Flash — prompt anti-text, cast reference
-  (upload_images: true), post QC cho video VMS. Narration VI luôn post.
-  Doc: https://agnes-ai.com/en/docs/agnes-video-25-flash ·
-  https://agnes-ai.com/en/docs/agnes-image-21-flash
 ---
 
 # Agnes Video — Brand prompt SSOT (anti-text + continuity)
 
 Skill **brand** cho mọi clip Agnes (VMS marketing, WEEK series, Reels 9:16).
-Workflow 9 bước đầy đủ: `.cursor/skills/agnes-vms-brand-requirements/SKILL.md`.
 
 **Nguyên tắc vàng:** T2V / image ref **không** mang ngôn ngữ / UI / chữ thương hiệu — chỉ hình + ánh sáng + hành vi. Tiếng Việt = **narration + burn-in sub** (post).
 
