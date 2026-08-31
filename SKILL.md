@@ -361,3 +361,13 @@ Mục 11 — Hướng dẫn sử dụng 6 image brand assets trong skill:
 2 VMS UI plates (vms_mobile.png, vms_pc.png) — pipeline overlay post-production, track màn hình, motion tracking
 Pipeline đề xuất từ T2V → QC → post-production
 Lưu ý: không dùng UI plate làm reference cho video, ưu tiên post overlay
+
+Mục 11.1 — Brand Identity:
+Primary: #0066CC — main brand
+Secondary: #23C1F5 — accent
+Quy tắc dùng màu trong post-production (overlay, gradient, text color)
+Typography khuyến nghị cho burn-in sub / caption (Roboto, Inter, Be Vietnam Pro)
+Mục 11.2 — Logo assets (giữ nguyên) 
+Mục 11.3 — VMS UI plates (giữ nguyên) 
+Mục 11.4 — Pipeline đề xuất (giữ nguyên) 
+Mục 11.5 — Lưu ý quan trọng (giữ nguyên)
