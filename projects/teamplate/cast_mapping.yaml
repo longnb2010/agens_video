@@ -1,0 +1,22 @@
+cast_registry:
+
+  # cast tái sử dụng từ WEEK cũ (đã approved) — dùng thẳng, KHÔNG generate lại, KHÔNG re-approve
+  {cast_id}:
+    file: {cast_id}.png
+    role: "{vai trò, VD: clinic_manager}"
+    identity_lock: {low|medium|high}
+    approved: true
+    reused_from: {week_id | null}
+
+  # cast mới cho WEEK này — chưa có file → agent generate → chờ user approve
+  {cast_id_new}:
+    file: null
+    role: "{vai trò}"
+    identity_lock: {low|medium|high}
+    approved: false
+    reused_from: null
+
+cast_mapping:
+  clip_1: [{cast_id}, {cast_id}]
+  clip_2: [{cast_id}]
+  # phải khớp CHÍNH XÁC cast[] của từng clip trong scenario.yaml — sai → PREFLIGHT FAIL

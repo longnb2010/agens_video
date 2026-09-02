@@ -1,0 +1,18 @@
+# OPTIONAL: chỉ cần file này nếu muốn tách narration ra khỏi scenario.yaml
+# để đưa thẳng cho bước TTS post-production. Nếu narration đã viết sẵn
+# trong scenario.yaml (clip.narration) thì có thể bỏ qua file này.
+
+language: vi
+voice: male
+
+segments:
+  clip_1:
+    text: "{lời thoại tiếng Việt, trùng với scenario.clip_1.narration}"
+  clip_2:
+    text: "{lời thoại tiếng Việt}"
+  # thêm clip_3, clip_4...
+
+subtitle:
+  burn_in: true
+  language: vi
+  generated_in: post_production_only

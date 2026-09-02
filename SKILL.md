@@ -1,390 +1,209 @@
----
-name: agnes-video-brand
-description: >-
-  Agnes Video 2.5 Flash + Image 2.1 Flash — prompt anti-text, cast reference
-  (upload_images: true), post QC cho video VMS. Narration VI luôn post.
-  Doc: https://agnes-ai.com/en/docs/agnes-video-25-flash ·
-  https://agnes-ai.com/en/docs/agnes-image-21-flash
----
+# AGNES VIDEO SKILL — COMPACT (v2)
 
-# Agnes Video — Brand prompt SSOT (anti-text + continuity)
-
-Skill **brand** cho mọi clip Agnes (VMS marketing, WEEK series, Reels 9:16).
-Workflow 9 bước đầy đủ: `.cursor/skills/agnes-vms-brand-requirements/SKILL.md`.
-
-**Nguyên tắc vàng:** T2V / image ref **không** mang ngôn ngữ / UI / chữ thương hiệu — chỉ hình + ánh sáng + hành vi. Tiếng Việt = **narration + burn-in sub** (post).
-
-**Generation mặc định VMS:**
-
-```yaml
-generation_mode:
-  upload_images: true          # cast sheet + UI plate — URL public hoặc base64
-  video_mode: reference        # ưu tiên giữ nhân vật; keyframe nếu 1 anchor frame
-  image_mode: img2img          # Image 2.1 — multi-image composition cho keyframe
-  fallback_video_mode: text    # chỉ khi không có cast ref (cảnh motion đơn lẻ)
-```
-### Bổ sung vào skill anh (Mục 0 — đầu skill)
-
-## 0. Quy trình xử lý ảnh upload (bắt buộc mỗi phiên)
-
-Khi có ảnh thật (upload) trong available materials, PHẢI:
-
-Bước 1: Đọc ảnh bằng read_image_for_prompt()
-  - focus: "logo, subject, outfit, scene, visible text, colors"
-  - Lấy chính xác facts từ ảnh thật
-
-Bước 2: Dùng ảnh làm reference image
-  - images: [{"ref": "img_xxxx", "role": "reference"}]
-  - KHÔNG chỉ dùng mã màu text thay thế cho logo thật
-
-Bước 3: Mô tả trong prompt dựa trên facts từ ảnh đã đọc
-  - VD: "VMS logo on the tablet" (từ ảnh thật)
-  - VD: "woman wearing a blue scrub top with embroidery" (từ ảnh thật)
-
-⚠️ Nếu bỏ qua → logo sai, nhân vật sai, bối cảnh sai
----
-
-## 1. Vì sao cần anti-text
-
-| Triệu chứng | Nguyên nhân | Sửa ở đâu |
-|-------------|-------------|-----------|
-| Chữ **Thái / Trung / Nhật** trên biển, tablet, áo | Model hallucinate chữ khi prompt có clipboard, UI, signage | **Prompt** (giảm) + **Post** blur/mosaic (bắt buộc nếu còn) |
-| Chữ **không phải tiếng Việt** trên điện thoại | T2V vẽ “app giả” | **Post** overlay `vms_mobile.png` — không nhờ T2V |
-| **Giọng nói tiếng Thái / ngoại ngữ** trong clip | Agnes T2V **tự sinh audio** (ambience + đôi khi lời thoại) khi cảnh có người “nói chuyện”; API **không** có flag tắt audio | **Post: mute 100% audio T2V** → chỉ TTS nam VI; **Prompt** giảm (mục 2b) |
-| **Nhân vật khác mặt** giữa các clip | Mỗi `POST /v1/videos` mode `text` = cast mới | **`reference` / `keyframe`** trước gen, hoặc chấp nhận documentary |
-
-Preflight `language_match` trong workflow VMS chỉ kiểm **narration/sub post** — **không** quét chữ trên frame hay audio T2V. Thêm bước **visual + audio QC tay** (mục 7).
+Execution contract. Agent follow exact. No skip gate.
 
 ---
 
-## 2. Khối anti-text chuẩn (bắt buộc cuối mọi `t2v_prompt`)
+## PRIORITY (conflict order)
+user request > approval/safety gate > scenario > brand/production policy > generation strategy > template/example
 
-Copy **nguyên khối** sau vào **cuối** mọi prompt English (sau mô tả cảnh):
-
-```text
-ANTI-TEXT LOCK: absolutely no readable text anywhere in the frame, no letters, no numbers, no logos, no brand names, no subtitles, no captions, no watermarks, no signage, no posters, no name tags, no embroidered text on uniforms, no writing on walls doors or glass, no Thai script, no Chinese characters, no Japanese characters, no Korean hangul, no Vietnamese diacritics, no random glyphs. All phone tablet monitor and TV screens must be completely blank or show only a smooth soft blue-white color gradient with zero UI elements and zero icons. No clipboard documents papers receipts or forms with visible print. Documentary cinematic look only.
-```
-
-**Rút gọn khi prompt dài** (vẫn giữ ý — dùng khi API giới hạn độ dài):
-
-```text
-No text letters numbers logos signage anywhere. Blank gradient screens only. No Thai Chinese Japanese script. No clipboard papers. Documentary.
-```
-
-### 2b. Khối anti-voice / anti-dialogue (bắt buộc — cảnh có người)
-
-Agnes Video 2.5 Flash **xuất MP4 kèm audio** (doc quickstart: *natural ambience*). Khi prompt mô tả người *explaining / talking*, model hay sinh **lời thoại ngẫu nhiên** — thường nghe như **tiếng Thái** hoặc ngôn ngữ Đông Nam Á khác. **Không có** tham số API `silent: true`.
-
-Dán **ngay trước** `ANTI-TEXT LOCK`:
-
-```text
-AUDIO LOCK: completely silent human dialogue, no spoken words, no lip-sync talking, no voiceover in any language, no Thai speech, no foreign language chatter, characters communicate only through gestures and expressions with closed or barely moving lips, optional very subtle room ambience only with no human voices.
-```
-
-**Rút gọn:**
-
-```text
-No dialogue no speech no lip-sync. Silent gestures only. No human voices in audio.
-```
-
-**Quy tắc VMS (bắt buộc post):** coi **toàn bộ audio T2V là rác** — luôn **mute** track gốc, chỉ giữ **TTS narration nam tiếng Việt** + BGM documentary (nếu cần).
-
-```bash
-# Tách video không tiếng (giữ hình)
-ffmpeg -i clip_raw.mp4 -an -c:v copy clip_muted.mp4
-```
+## TIE-BREAK
+repeated_cast + high_identity_precision → keyframe wins (identity = hard constraint > continuity preference)
+other unlisted conflict → STOP, ask user. Never silent-pick.
 
 ---
 
-## 3. Template prompt đầy đủ
-
-```text
-Vertical 9:16, {DURATION}s, documentary veterinary clinic in Southeast Asia, warm natural lighting, shallow depth of field, soft handheld camera.
-
-SCENE: {SCENE_DESCRIPTION — English only, no quoted dialogue}
-
-PEOPLE: {AGE_GENDER_ROLE — generic, no names}, {WARDROBE — plain solid colors, no text on fabric}
-
-CAMERA: {shot type — wide / medium / close-up}, {motion — slow push-in / static / gentle pan}
-
-MOOD: {professional / thoughtful / warm / celebratory}
-
-{AUDIO_LOCK — section 2b if scene has people}
-
-{ANTI_TEXT_LOCK — full block from section 2}
-```
-
-### Tham số API — Video (Agnes Video 2.5 Flash)
-
-**Mặc định multi-clip VMS — `reference` + cast URLs:**
-
-```json
-{
-  "model": "agnes-video-2.5-flash",
-  "mode": "reference",
-  "seconds": "8",
-  "size": "720P",
-  "aspect_ratio": "9:16",
-  "images": [
-    "https://YOUR_HOST/cast_manager.png",
-    "https://YOUR_HOST/cast_reception.png"
-  ],
-  "prompt": "Use the person in <Picture 1> as the clinic manager and <Picture 2> as the receptionist. Vertical 9:16 documentary veterinary clinic ... {AUDIO_LOCK} {ANTI_TEXT_LOCK}"
-}
-```
-
-**Keyframe** (1 anchor frame đã QC):
-
-```json
-{
-  "model": "agnes-video-2.5-flash",
-  "mode": "keyframe",
-  "first_frame": "https://YOUR_HOST/keyframe_clip1.png",
-  "seconds": "8",
-  "size": "720P",
-  "aspect_ratio": "9:16",
-  "prompt": "<scene + locks>"
-}
-```
-
-**Fallback — `text` only** (cảnh cần motion, không cần cùng cast — vd. khách dắt chó ra cửa):
-
-```json
-{
-  "model": "agnes-video-2.5-flash",
-  "mode": "text",
-  "seconds": "8",
-  "size": "720P",
-  "aspect_ratio": "9:16",
-  "prompt": "<template above>"
-}
-```
-
-Flash: tối đa **5** ảnh `images`; không hỗ trợ `videos` reference.
-
-### Tham số API — Image keyframe (Agnes Image 2.1 Flash)
-
-Dùng khi cần frame tĩnh QC trước hoặc anchor cho `keyframe` video:
-
-```json
-{
-  "model": "agnes-image-2.1-flash",
-  "prompt": "Documentary veterinary clinic, cast from reference, no text ...",
-  "size": "2K",
-  "ratio": "9:16",
-  "extra_body": {
-    "image": [
-      "https://YOUR_HOST/cast_manager.png",
-      "https://YOUR_HOST/cast_reception.png"
-    ],
-    "response_format": "url"
-  }
-}
-```
-
-Endpoint: `POST https://apihub.agnes-ai.com/v1/images/generations`
-
-Rate limit video thường **1 request / phút** — gen tuần tự từng clip.
+## HARD RULES (never break)
+- video: 9:16, 8s default
+- t2v: no readable text, no real UI, no precise logo, no subtitle-in-gen, no quoted dialogue
+- audio: t2v audio = disposable. final audio = mute → vi male TTS → BGM
+- ui/logo: gen forbidden, post_overlay allowed
+- user_approval required before: video gen, new cast, final delivery
+- default regen scope: single clip. never touch passed clips w/o user ask
+- cast real person (khách hàng/nhân viên thật): dùng đúng project được giao, không tái dùng project khác trừ user confirm. User bảo bỏ cast → bỏ ngay kể cả clip đã approved (exception duy nhất cho "không đụng approved state")
 
 ---
 
-## 4. Vật thể — tránh vs thay thế
+## WORKFLOW
+REQUEST → NORMALIZE → SCENARIO → [WAIT APPROVAL] → CAST RESOLVE → [WAIT APPROVAL] → MANIFEST → PREFLIGHT → GEN → PRE-QC → USER QC → FIX LOOP → FINAL QC → POST → DELIVERY
 
-| Tránh trong prompt | Vì sao | Thay bằng |
-|--------------------|--------|-----------|
-| `clipboard`, `report`, `chart on tablet` | Kéo chữ số / bảng giả | NV **gesturing** khi nói, tay trống hoặc cầm bút không giấy |
-| `tablet showing data`, `dashboard` | UI + chữ Thái | Tablet **tắt màn** hoặc **mặt sau máy**, ánh sáng phản chiếu mờ |
-| `smartphone app interface`, `loyalty points screen` | App giả sai ngôn ngữ | Điện thoại **màn gradient blur** — overlay UI **post** |
-| `clinic sign`, `name badge`, `logo on shirt` | Chữ brand sai | **Plain uniform**, tường trơn, logo chỉ **hình học mờ** không chữ |
-| `receipt`, `prescription paper`, `form` | Chữ in hallucinate | Không đưa giấy vào frame |
-| `Vietnamese`, `Vietnam text` trong prompt | Không điều khiển được ngôn ngữ chữ trên hình | Mô tả **địa lý / kiến trúc** nhẹ: `Southeast Asian urban clinic` |
+## STATE MACHINE (short)
+```
+SCENARIO_DRAFT --approve--> CAST_RESOLUTION --reject--> SCENARIO_DRAFT
+CAST_RESOLUTION: missing/partial cast -> CAST_GENERATION -> CAST_APPROVAL
+  (chỉ approve cast MỚI, cast approved cũ dùng thẳng)
+CAST_APPROVAL --approve--> PREFLIGHT --reject--> CAST_GENERATION
+PREFLIGHT --pass--> GENERATION --fail--> BLOCKED
+BLOCKED: KHÔNG tự retry preflight. Báo user field fail + chờ input mới, mới re-run.
+GENERATION -> PRE_QC --pass--> USER_QC --fail--> FIX_LOOP
+USER_QC --approve--> FINAL_QC --reject--> FIX_LOOP
+FIX_LOOP -> GENERATION (version += 1)
+FINAL_QC --pass--> POST --> DELIVERY(terminal)
+```
+ambiguous feedback → stay state, ask clarify, no regen.
 
 ---
 
-## 5. Scene templates (VMS — copy + điền `{...}`)
+## SCENARIO
+= source of truth nội dung. Full series scenario trước khi gen bất kỳ clip nào.
+clip fields: clip_id, objective, cast[], action, environment, camera{shot,movement}, mood, narration_mapping, ui{required,assets}, branding{required,assets}, generation{identity_precision, motion_complexity}
 
-### 5.1 Quản lý + lễ tân (báo cáo — không clipboard)
+## CAST
+registry: cast_id{file, role, identity_lock(low/med/high), approved(bool), reused_from(optional)}
+mapping: clip_id -> [cast_id...]
+validate: scenario.cast == mapping.cast, all assets exist, approved==true → else PREFLIGHT FAIL
+image read: chỉ lấy fact thật (subject/face/outfit/scene/logo/text/color). KHÔNG invent face/clothing/logo/env/identity.
+missing cast: generate → CAST QC → USER APPROVE → usable. Never gen video với cast chưa approve.
 
-```text
-Vertical 9:16, 8 seconds, documentary veterinary clinic, warm window light.
-Male clinic manager in light blue shirt sits at wooden desk, listening attentively.
-Female receptionist in plain white uniform stands beside desk, gesturing with open hands while explaining monthly performance through silent body language only, no papers no devices with screens facing camera.
-Modern clean waiting area blurred in background, cinematic shallow focus.
-{AUDIO_LOCK}
-{ANTI_TEXT_LOCK}
-```
+## ASSETS
+reference: cast only
+post_overlay: ui, logo, subtitle
+forbidden_in_gen: real_ui, readable_logo, readable_text
 
-**Narration VI (post):** *"Anh quản lý, tháng này khách mới tăng 20%. Nhưng em xem lại — tỷ lệ quay lại chỉ 30% thôi ạ."*
+## STRATEGY ENGINE
+repeated_cast → reference (fallback keyframe)
+high_identity_precision → keyframe (fallback reference)
+simple_motion → reference (fallback text)
+no_cast_continuity → text
+ui_required → t2v blank_gradient, actual ui = post_overlay
+multi-rule match & conflict → apply TIE-BREAK trước khi build prompt.
 
-### 5.2 Khách trung thành / rời phòng khám
+## PROMPT COMPILER
+= SCENARIO + CAST + CAMERA + MOOD + POLICIES, compiled không copy-paste tay.
+Luôn English, kể cả scenario gốc tiếng Việt.
+Cast ref template: "Use <Picture 1> as {ROLE_1}, <Picture 2> as {ROLE_2}..." — giữ đúng thứ tự.
 
-```text
-Vertical 9:16, 8 seconds, documentary veterinary clinic exterior and entrance, golden hour warm light.
-Middle-aged male manager brief thoughtful close-up indoors, soft bokeh.
-Cut to happy woman leaving glass entrance with golden retriever on leash, relaxed body language, no visible store signs.
-{ANTI_TEXT_LOCK}
-```
+## ANTI-TEXT LOCK (inject mọi prompt)
+no text/letters/numbers/logo/signage/subtitle/watermark/nametag/writing-on-surface/foreign-script anywhere. Screens = blank or blue-white gradient only, zero UI/icon. No visible-print papers. Documentary look.
 
-### 5.3 Tích điểm — điện thoại (UI = post overlay)
+## AUDIO LOCK (inject mọi prompt)
+no dialogue/speech/lip-sync/voiceover any language. Silent gesture only. Optional subtle ambience, no human voice.
+Pipeline: t2v audio → MUTE → vi male TTS → BGM.
 
-```text
-Vertical 9:16, 8 seconds, indoor clinic reception close-up, warm soft light.
-Young woman holds smartphone vertically at chest level, screen shows only smooth blurred blue-white glow with no interface details.
-Female staff in plain white uniform points gently toward the phone, friendly expression, focus on faces and hands.
-No pets, no outdoor scene.
-{ANTI_TEXT_LOCK}
-```
+## UI/LOGO POLICY
+Gen: physical device + blank gradient screen only. Post: motion-track + overlay real asset (vms_mobile.png / vms_pc.png / logo).
 
-**Post:** composite `brand/agens_video/assets/vms_mobile.png` (hoặc `.cursor/skills/agnes-vms-brand-requirements/assets/dashboard-mobile.png`) lên vùng màn hình.
-
-### 5.4 Đổi điểm lấy quà
-
-```text
-Vertical 9:16, 8 seconds, indoor clinic front counter, warm documentary light.
-Smiling receptionist in plain white uniform hands a small plain gift bag with pet treats to delighted young woman customer.
-Customer's other hand holds phone with blank gradient screen facing slightly away from camera.
-Focus on gift exchange and facial expressions, plain counter surface without labels.
-{ANTI_TEXT_LOCK}
-```
-
-### 5.5 UI demo thuần (chỉ post — không T2V app)
-
-Không gen màn hình app bằng T2V. Pipeline:
-
-1. Gen **cánh tay + khung điện thoại mờ** (template 5.3), hoặc dùng stock plate.
-2. Overlay PNG UI VMS + track motion nhẹ.
-3. Narration VI giải thích tính năng.
+## BRAND
+primary #0066CC, secondary #23C1F5. Font: Roboto/Inter/Be Vietnam Pro. Logo gen forbidden, post only.
 
 ---
 
-## 6. Đồng bộ nhân vật (multi-clip) — `upload_images: true`
+## CLIP MANIFEST (per clip)
+version, status{generation, pre_qc, user_approval}, scenario{...}, assets{references, post_overlay}, generation{model, mode, duration=8, size=720P, ratio=9:16}, prompt{scene, policies}, narration{vi, male, text}, post{mute=true, tts=male_vi, subtitles=true, ui_overlay, logo_overlay}, qc{technical, visual, audio, cast}, version_history[], output{working_path, final_path}
+= source of truth cho clip đó.
 
-Mặc định VMS **bật** upload ảnh cast — không dùng `mode: text` thuần cho clip có quản lý / lễ tân lặp lại.
-
-| Nhu cầu | Cách làm |
-|---------|----------|
-| Cùng quản lý / lễ tân nhiều clip | **`mode: reference`** — URL cast public trong `images` (≤5), prompt: `Use <Picture 1> as clinic manager...` |
-| Anchor frame đã QC (Image 2.1) | Gen keyframe PNG → **`mode: keyframe`** + `first_frame` URL |
-| Image pipeline (không motion) | Image 2.1 multi-image → ffmpeg `zoompan` / `xfade` — không audio T2V |
-| Cảnh motion đơn, không cần cast | **`mode: text`** fallback — vẫn mute + TTS post |
-
-**Cast sheet** (bắt buộc trước gen series):
-
-| File | Mô tả |
-|------|--------|
-| `cast_manager.png` | Nam, áo trơn, không chữ/badge, nền PK mờ |
-| `cast_reception.png` | Nữ, đồng phục trơn, không chữ |
-| `vms_mobile.png` (optional) | UI plate — post overlay hoặc composition ref |
-
-Host URL **public HTTPS** (Agnes phải fetch được) hoặc Data URI base64 trong `extra_body.image` (Image API).
-
-```yaml
-generation_mode:
-  upload_images: true
-  mode: reference              # video
-  cast_assets:
-    - cast_manager.png
-    - cast_reception.png
-  image_keyframes: true        # Image 2.1 khi cần QC frame trước video
+## OUTPUT PATH
+```
+projects/{project}/{week}/renders/{clip_id}_v{version}.mp4   ← mọi version, không xoá
+projects/{project}/{week}/final/{clip_id}.mp4                ← bản approved
+projects/{project}/{week}/final/final_video.mp4              ← ghép series
 ```
 
----
+## PREFLIGHT (before every gen call)
+check: scenario.approved, cast.mapping_valid+assets_ready+approval_valid, ui/logo ready if required, mode_selected+conflict_resolved, ratio=9:16, duration=8, prompt.english_only+anti_text_lock+audio_lock+cast_mapping_present, post.narration_separated+audio_discarded
+FAIL → fail_reason required → NO API CALL → BLOCKED
+PASS → proceed GENERATION
 
-## 7. Visual QC trước merge (bắt buộc — human)
+## GENERATION
+Sequential only, 1 clip at a time: gen → record metadata → pre-QC → next per workflow. No parallel assume.
 
-Xem **từng clip** trước khi ghép:
+## API DEFAULTS
+video: model=agnes-video-2.5-flash, mode=reference/keyframe/text, seconds=8, size=720P, ratio=9:16
+image: model=agnes-image-2.1-flash, size=2K, ratio=9:16, endpoint=POST https://apihub.agnes-ai.com/v1/images/generations
+video endpoint: chưa confirm trong spec — hỏi/xác nhận trước call đầu tiên mỗi project mới, không tự suy từ image endpoint.
+rate limit = real constraint, không assume unlimited.
 
-| # | Check | Fail → |
-|---|-------|--------|
-| 1 | Có **bất kỳ chữ** nào đọc được (kể cả ngoại ngữ)? | Blur post **hoặc** gen lại + tăng ANTI_TEXT_LOCK |
-| 2 | Màn hình điện thoại/tablet có UI giả? | Overlay UI đúng **hoặc** gen lại với `blank gradient screens only` |
-| 3 | Cùng cast với clip trước? (nếu scenario yêu cầu) | Gen lại bằng `reference` |
-| 4 | Tỷ lệ 9:16, 8–10s? | Regenerate đúng `aspect_ratio` |
-| 5 | **Audio T2V** có giọng nói / tiếng Thái / bất kỳ lời thoại? | **Mute** (`ffmpeg -an`) — không dùng audio model |
-| 6 | Narration VI đã ghi — **chưa** burn vào T2V? | OK — sub + TTS chỉ ở bước post |
-
-Ghi kết quả QC vào scenario:
-
-```yaml
-visual_qc:
-  clip_1: pass | fail_text | fail_cast
-  clip_2: pass
-  notes: "blur 0:03-0:04 tablet corner"
-```
+## TECHNICAL RETRY (lỗi hạ tầng — KHÁC lỗi content)
+applies: timeout, 5xx, 429, malformed response, corrupted download
+max 3 retry, exponential backoff (5s/15s/45s)
+KHÔNG tăng clip version. Đếm riêng khỏi content QC attempts.
+sau max → BLOCKED, báo lỗi kỹ thuật cho user rõ ràng, không âm thầm hạ chất lượng để né.
 
 ---
 
-## 8. Post-production (nơi xử lý lỗi thật)
+## QC
 
-| Lỗi T2V | Công cụ | Hành động |
-|---------|---------|-----------|
-| Chữ Thái / rác trên biển, áo | CapCut / Premiere / ffmpeg | Mosaic hoặc blur vùng |
-| UI điện thoại sai | After Effects / CapCut | Track matte + `vms_mobile.png` |
-| **Giọng Thái / lời thoại T2V** | ffmpeg `-an` mute → TTS nam VI | **Bắt buộc** mọi clip VMS |
-| Ngôn ngữ đúng cho audience | TTS nam VI + burn-in sub | Bước 7 workflow VMS |
-| Nhạc / pacing | Merge clips + BGM documentary nhẹ | Fade 0.3s giữa clip |
+pre_qc (auto, sau mỗi gen): technical{file_exists, duration, ratio, resolution}, visual{text, foreign_script, fake_ui, fake_logo, cast_consistency, character_presence, background, artifact}, audio{unwanted_dialogue, foreign_lang, track} → PASS/FAIL
 
-**Narration:** 3.5–4.5 chữ/giây · giọng **nam** · tiếng **Việt** · hashtag chỉ ở **caption**, không T2V.
+user_qc (chỉ gửi sau pre_qc PASS): identity{face, outfit, pet}, creative{action, background, composition, mood, story}, visual{unwanted_text, fake_ui, watermark}, format{ratio, duration} → APPROVED/NEED_FIX
+
+final_qc (chỉ chạy khi ALL clip user-approved): scenario+cast PASS, all clips approved, technical/visual/audio/branding PASS → gate cho DELIVERY
 
 ---
 
-## 9. Checklist agent (trước mỗi lần gọi API)
+## FIX LOOP
+feedback → parse clip → classify failure → pick strategy (mục FAILURE HANDLERS) → update manifest → version+=1 → PREFLIGHT → regen CHỈ clip đó → pre-QC → user QC.
+Không regen cả series.
 
-- [ ] `upload_images: true` — cast sheet URL public đã sẵn sàng
-- [ ] Clip có NV lặp → **`mode: reference`** hoặc **keyframe** (không `text` thuần)
-- [ ] Prompt **English only** — không tiếng Việt có dấu, không `"VMS"` / `"Thiên Long Trí"` trong prompt
-- [ ] Cảnh có người → có **AUDIO_LOCK** (silent dialogue) — video T2V vẫn **mute post**
-- [ ] Cuối prompt có **ANTI_TEXT_LOCK** (full hoặc rút gọn)
-- [ ] Không clipboard / dashboard / signage / badge chữ trong SCENE
-- [ ] Điện thoại = **blank gradient** hoặc **composite ref** `vms_mobile.png`; UI thật = **post overlay**
-- [ ] `narration_vi` tách riêng — không nhét vào prompt
-- [ ] Sau gen: **visual QC** mục 7 trước khi báo deliver
+## FAILURE TYPES (content only — lỗi hạ tầng xem TECHNICAL RETRY)
+identity: face/outfit/pet_identity/character_swap
+composition: missing_character/wrong_position/wrong_action/wrong_camera
+environment: wrong_background/location/lighting
+visual: text/watermark/fake_logo/fake_ui/anatomy/artifact
+technical: aspect_ratio/duration/resolution/corrupted_file
+audio: unwanted_dialogue/foreign_language/wrong_voice
+creative: wrong_story/wrong_mood/wrong_message
+
+## FAILURE HANDLERS
+face → approved_cast_ref → keyframe → regen
+outfit → approved_cast_ref → strengthen_instruction
+pet_identity → approved_pet_ref → keyframe_if_needed
+background → simplify_env → strengthen_prompt → keyframe → alt_model
+text → remove_risk_object → strengthen_anti_text → regen/post_blur
+fake_ui → blank_screen → remove_ui_from_gen → post_overlay
+aspect_ratio → correct_api_param (no regen needed nếu chỉ param sai)
+missing_character → validate_mapping → strengthen_picture_mapping
+unwanted_dialogue → mute_only, NO REGEN, version không tăng
+wrong_story → revise_scene → regen
+
+## RETRY BUDGET = VERSION COUNTER (1 counter duy nhất, không tách attempt riêng)
+max 3 version/clip cho lỗi content.
+v1=attempt1, v2=attempt2(sau fix1), v3=attempt3(sau fix2).
+Chạm max 3 → BLOCKED → require_user_decision. Không tự tạo v4.
+Fix bằng post-production (VD mute audio) → KHÔNG tăng version.
+Fix hạ tầng (TECHNICAL RETRY) → KHÔNG tăng version.
+
+## VERSIONING
+Never overwrite: clip_03_v001.mp4, v002, v003...
+history log: version, status, reason.
+version thành "current" chỉ khi PASS user_qc.
+
+---
+
+## PRESERVE APPROVED STATE
+Không tự đổi: approved_scenario, approved_cast, approved_narration, approved_ui_assets, approved_logo_assets.
+Chỉ đổi khi user yêu cầu hoặc failure handler bắt buộc.
+Exception: real-person cast bị user revoke → bỏ ngay cả ở clip đã approved (xem HARD RULES).
+
+## AGENT COMMAND MAP
+"Tạo WEEK N" → parse → build scenario → WAIT approval
+"OK scenario" → resolve cast (chỉ cast mới) → WAIT approval nếu có cast mới
+"Gen đi" → verify approval state → preflight → generate
+"Clip X sai mặt" → failure=face → tie-break→keyframe → regen clip X only, version+=1
+"Clip X có tiếng nước ngoài" → mute audio only, NO regen, version không tăng
+"Clip X, Y OK" → mark approved, không regen
+
+## ANTI-DRIFT
+NEVER: invent cast/logo/UI/narration, đổi approved scenario/cast (trừ exception), regen passed clip, skip approval, auto-retry preflight loop vô nghĩa (phải có input mới)
+ALWAYS: reuse approved asset/scenario, track version (1 counter), track failure reason, update manifest, phân biệt lỗi hạ tầng vs lỗi content
+
+## PROJECT DATA
+KHÔNG hard-code WEEK cụ thể / customer / narration / cast mapping / campaign vào core skill.
+Mỗi project riêng: projects/{week}/{scenario.yaml, cast_mapping.yaml, narration.yaml, manifests/, renders/, final/}
 
 ---
 
-## 10. Ví dụ JSON scenario (1 clip — reference + upload)
-
-```json
-{
-  "clip_id": "week10_clip1_manager",
-  "generation_mode": {
-    "upload_images": true,
-    "mode": "reference"
-  },
-  "cast_assets": [
-    "https://YOUR_HOST/cast_manager.png",
-    "https://YOUR_HOST/cast_reception.png"
-  ],
-  "agnes": {
-    "model": "agnes-video-2.5-flash",
-    "mode": "reference",
-    "seconds": "8",
-    "size": "720P",
-    "aspect_ratio": "9:16",
-    "images": [
-      "https://YOUR_HOST/cast_manager.png",
-      "https://YOUR_HOST/cast_reception.png"
-    ]
-  },
-  "narration_vi": "Anh quản lý, tháng này khách mới tăng 20%. Nhưng em xem lại — tỷ lệ quay lại chỉ 30% thôi ạ.",
-  "t2v_prompt": "Use the person in <Picture 1> as the clinic manager and <Picture 2> as the receptionist. Vertical 9:16, 8 seconds, documentary veterinary clinic, warm window light. Manager sits at wooden desk listening. Receptionist gestures with open hands, silent body language, no papers no screen UI. Shallow focus. AUDIO LOCK: no dialogue no speech. ANTI-TEXT LOCK: no readable text, blank screens only, no Thai Chinese Japanese script, documentary only."
-}
-```
-
----
-Mục 11 — Hướng dẫn sử dụng 6 image brand assets trong skill:
-
-4 logo variants (logo.png, Logo-Darkmode, Logo-Lightmode, Logo-Lightmode-Blue Background) — cách chọn theo nền, overlay góc phải dưới, scale
-2 VMS UI plates (vms_mobile.png, vms_pc.png) — pipeline overlay post-production, track màn hình, motion tracking
-Pipeline đề xuất từ T2V → QC → post-production
-Lưu ý: không dùng UI plate làm reference cho video, ưu tiên post overlay
-
-Mục 11.1 — Brand Identity:
-Primary: #0066CC — main brand
-Secondary: #23C1F5 — accent
-Quy tắc dùng màu trong post-production (overlay, gradient, text color)
-Typography khuyến nghị cho burn-in sub / caption (Roboto, Inter, Be Vietnam Pro)
-Mục 11.2 — Logo assets (giữ nguyên) 
-Mục 11.3 — VMS UI plates (giữ nguyên) 
-Mục 11.4 — Pipeline đề xuất (giữ nguyên) 
-Mục 11.5 — Lưu ý quan trọng (giữ nguyên)
+## NON-NEGOTIABLE (đọc kỹ, đây là hard gate)
+1. NO APPROVAL → NO GENERATION
+2. SCENARIO = SOURCE OF TRUTH
+3. CAST MAPPING MUST MATCH SCENARIO
+4. PREFLIGHT FAIL → NO API CALL
+5. T2V TEXT FORBIDDEN
+6. REAL UI = POST-PRODUCTION ONLY
+7. T2V ORIGINAL AUDIO = DISPOSABLE
+8. REPEATED CAST → REFERENCE/KEYFRAME (identity precision thắng khi conflict)
+9. ONE FAILED CLIP → FIX ONE CLIP ONLY
+10. NEVER DESTROY APPROVED VERSIONS
+11. FINAL DELIVERY = ALL GATES PASS
+12. VERSION = DUY NHẤT COUNTER CHO LỖI CONTENT; LỖI HẠ TẦNG RETRY RIÊNG, KHÔNG TĂNG VERSION
+13. BLOCKED KHÔNG TỰ THOÁT — CẦN INPUT MỚI/LỆNH RÕ TỪ USER

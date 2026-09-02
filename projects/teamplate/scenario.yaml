@@ -1,0 +1,18 @@
+{week}_scenario:
+
+  clip_1:
+    title: "{clip_1 title ngắn}"
+    cast: [{cast_id}, {cast_id}]
+    prompt: "{English t2v prompt: action + environment + camera mood, silent, no text/no UI}"
+    narration: "{lời thoại tiếng Việt, ~28-36 từ / 8s clip}"
+    post_overlay: [{vms_mobile.png | vms_pc.png | logo.png}]   # để [] nếu clip không cần overlay
+
+  clip_2:
+    title: "{clip_2 title ngắn}"
+    cast: [{cast_id}]
+    prompt: "{English t2v prompt}"
+    narration: "{lời thoại tiếng Việt}"
+    post_overlay: []
+
+  # thêm clip_3, clip_4... theo đúng số clip cần, giữ nguyên 5 field:
+  # title / cast / prompt / narration / post_overlay
