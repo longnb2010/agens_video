@@ -115,7 +115,7 @@ Sequential only, 1 clip at a time: gen → record metadata → pre-QC → next p
 
 ## API DEFAULTS
 video: model=agnes-video-2.5-flash, mode=reference/keyframe/text, seconds=8, size=720P, ratio=9:16
-image: model=agnes-image-2.1-flash, size=2K, ratio=9:16, endpoint=POST https://apihub.agnes-ai.com/v1/images/generations
+image: model=agnes-image-2.5-flash, size=2K, ratio=9:16, endpoint=POST https://apihub.agnes-ai.com/v1/images/generations
 video endpoint: chưa confirm trong spec — hỏi/xác nhận trước call đầu tiên mỗi project mới, không tự suy từ image endpoint.
 rate limit = real constraint, không assume unlimited.
 
