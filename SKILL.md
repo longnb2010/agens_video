@@ -99,8 +99,14 @@ projects/{project}/{week}/final/{clip_id}.mp4                ← bản approved
 projects/{project}/{week}/final/final_video.mp4              ← ghép series
 ```
 
+## ASSET DISCOVERY (chạy TRƯỚC preflight, mỗi khi cast_registry/ui/logo đổi)
+List thật assets/cast/*, assets/ui/*, assets/logo/* trên disk — KHÔNG suy ra file tồn tại chỉ vì có tên trong cast_registry/ui.yaml/brand.yaml.
+Cross-check: mọi cast_registry[*].file, ui_assets[*].file (vms_mobile.png/vms_pc.png), brand.logo file phải thật sự có trong 3 thư mục trên.
+Mismatch (claim có nhưng disk không có) → PREFLIGHT FAIL, fail_reason = "asset referenced nhưng không tồn tại trên disk: {filename}".
+Field `approved: true` / `file: xxx.png` trong yaml chỉ là claim, không phải bằng chứng — assets_ready chỉ = true sau khi discovery confirm.
+
 ## PREFLIGHT (before every gen call)
-check: scenario.approved, cast.mapping_valid+assets_ready+approval_valid, ui/logo ready if required, mode_selected+conflict_resolved, ratio=9:16, duration=8, prompt.english_only+anti_text_lock+audio_lock+cast_mapping_present, post.narration_separated+audio_discarded
+check: asset_discovery đã pass (bắt buộc trước), scenario.approved, cast.mapping_valid+assets_ready+approval_valid, ui/logo ready if required, mode_selected+conflict_resolved, ratio=9:16, duration=8, prompt.english_only+anti_text_lock+audio_lock+cast_mapping_present, post.narration_separated+audio_discarded
 FAIL → fail_reason required → NO API CALL → BLOCKED
 PASS → proceed GENERATION
 
@@ -207,3 +213,4 @@ Mỗi project riêng: projects/{week}/{scenario.yaml, cast_mapping.yaml, narrati
 11. FINAL DELIVERY = ALL GATES PASS
 12. VERSION = DUY NHẤT COUNTER CHO LỖI CONTENT; LỖI HẠ TẦNG RETRY RIÊNG, KHÔNG TĂNG VERSION
 13. BLOCKED KHÔNG TỰ THOÁT — CẦN INPUT MỚI/LỆNH RÕ TỪ USER
+14. FILE TRONG YAML KHÔNG PHẢI BẰNG CHỨNG — PHẢI LIST ASSETS/ THẬT TRƯỚC KHI COI LÀ SẴN CÓ
