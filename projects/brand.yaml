@@ -1,0 +1,28 @@
+brand_policy:
+
+  colors:
+    primary: "#0066CC"
+    secondary: "#23C1F5"
+
+  typography:
+    preferred:
+      - Roboto
+      - Inter
+      - Be Vietnam Pro
+
+  logo:
+    generation_in_t2v: forbidden
+    post_overlay: allowed
+    asset_path: assets/logo/
+    placement: post_production_only
+    rule: >
+      Không yêu cầu T2V render logo chính xác dưới bất kỳ hình thức nào
+      (kể cả "mờ mờ thấy logo cũng được"). Logo thật luôn overlay ở post,
+      lấy từ assets/logo/, canh placement + sizing thủ công.
+
+  usage_rule: >
+    Mọi mention brand/logo trong scenario chỉ đánh dấu
+    branding.required=true + branding.assets=[...] trong clip manifest,
+    KHÔNG đưa mô tả logo vào generation prompt.
+
+  failure_handler_ref: "SKILL.md#FAILURE_HANDLERS.fake_logo (nếu lỡ xuất hiện trong gen)"

@@ -1,0 +1,35 @@
+ui_policy:
+
+  t2v_generation:
+    real_app_ui: forbidden
+    allowed_scene: "physical phone/tablet with blank or gradient screen only"
+    gradient_style: "smooth soft blue-white color gradient, zero UI elements, zero icons"
+
+  post_production:
+    steps:
+      - blank_device_screen_in_render
+      - motion_tracking
+      - overlay_real_ui_asset
+
+  assets:
+    mobile:
+      file: vms_mobile.png
+      path: assets/ui/vms_mobile.png
+      usage: post_overlay
+    pc:
+      file: vms_pc.png
+      path: assets/ui/vms_pc.png
+      usage: post_overlay
+
+  clip_manifest_fields:
+    ui.required: bool
+    ui.assets: ["vms_mobile.png" | "vms_pc.png"]
+    post.ui_overlay: []
+
+  usage_rule: >
+    Nếu clip.ui.required=true → generation chỉ tạo device với màn hình
+    trống/gradient (t2v_generation.allowed_scene). Ảnh UI thật
+    (assets/ui/*.png) CHỈ dùng ở bước post-production, không đưa vào
+    prompt hay reference image khi gọi video generation API.
+
+  failure_handler_ref: "SKILL.md#FAILURE_HANDLERS.fake_ui"

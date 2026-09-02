@@ -1,0 +1,68 @@
+anti_text_policy:
+
+  applies_to: t2v_generation_only   # không áp dụng cho post_overlay (subtitle/ui/logo)
+
+  forbidden:
+    - readable_text
+    - letters
+    - numbers
+    - logos
+    - brand_names
+    - subtitles
+    - captions
+    - watermarks
+    - signage
+    - posters
+    - name_tags
+    - embroidered_text_on_uniforms
+    - writing_on_walls_doors_glass
+    - random_glyphs
+
+  forbidden_scripts:
+    - thai
+    - chinese
+    - japanese
+    - korean_hangul
+    - vietnamese_diacritics
+
+  screens:
+    phone: blank_or_gradient_only
+    tablet: blank_or_gradient_only
+    monitor: blank_or_gradient_only
+    tv: blank_or_gradient_only
+    gradient_style: "smooth soft blue-white color gradient"
+    ui_elements: zero
+    icons: zero
+
+  documents:
+    clipboard: forbidden_if_visible_print
+    papers: forbidden_if_visible_print
+    receipts: forbidden_if_visible_print
+    forms: forbidden_if_visible_print
+
+  style: documentary_cinematic_only
+
+  prompt_injection:
+    full: >
+      ANTI-TEXT LOCK: absolutely no readable text anywhere in the frame,
+      no letters, no numbers, no logos, no brand names, no subtitles,
+      no captions, no watermarks, no signage, no posters, no name tags,
+      no embroidered text on uniforms, no writing on walls doors or glass,
+      no Thai script, no Chinese characters, no Japanese characters,
+      no Korean hangul, no Vietnamese diacritics, no random glyphs.
+      All phone tablet monitor and TV screens must be completely blank
+      or show only a smooth soft blue-white color gradient with zero UI
+      elements and zero icons. No clipboard documents papers receipts or
+      forms with visible print. Documentary cinematic look only.
+
+    compact: >
+      No text letters numbers logos signage anywhere. Blank gradient
+      screens only. No Thai Chinese Japanese script. No clipboard papers.
+      Documentary.
+
+  usage_rule: >
+    Inject prompt_injection.full (hoặc .compact nếu prompt đã dài) vào
+    MỌI clip generation prompt, không có ngoại lệ. Không được bỏ vì
+    "scene này chắc không dính chữ".
+
+  failure_handler_ref: "SKILL.md#FAILURE_HANDLERS.text"

@@ -1,0 +1,54 @@
+audio_policy:
+
+  t2v_original_audio:
+    status: disposable
+    never_used_as: final_dialogue_source
+
+  final_audio:
+    dialogue_source: post_tts
+    language: vi
+    voice_gender: male
+    pipeline:
+      - step: t2v_generation_audio
+      - step: mute
+      - step: vietnamese_male_tts
+      - step: bgm
+      - step: final_mix
+
+  generation_lock:
+    forbidden:
+      - spoken_words
+      - lip_sync_talking
+      - voiceover_any_language
+      - foreign_language_chatter
+      - thai_speech
+    allowed:
+      - gestures
+      - facial_expressions
+      - closed_or_barely_moving_lips
+      - subtle_room_ambience_no_human_voice
+
+  prompt_injection:
+    full: >
+      AUDIO LOCK: completely silent human dialogue, no spoken words,
+      no lip-sync talking, no voiceover in any language, no Thai speech,
+      no foreign language chatter, characters communicate only through
+      gestures and expressions with closed or barely moving lips,
+      optional very subtle room ambience only with no human voices.
+
+    compact: >
+      No dialogue no speech no lip-sync. Silent gestures only.
+      No human voices in audio.
+
+  usage_rule: >
+    Inject prompt_injection vào mọi clip generation prompt.
+    Nếu clip vẫn ra tiếng nước ngoài/dialogue không mong muốn sau gen:
+    → chỉ MUTE ở post, KHÔNG regenerate (xem failure_handler unwanted_dialogue).
+    Version của clip KHÔNG tăng vì fix này.
+
+  narration_post:
+    rate_guideline: "3.5–4.5 Vietnamese words/second"
+    subtitle: burn_in_vietnamese
+    subtitle_generation_in_t2v: forbidden   # subtitle chỉ làm ở post
+
+  failure_handler_ref: "SKILL.md#FAILURE_HANDLERS.unwanted_dialogue"
