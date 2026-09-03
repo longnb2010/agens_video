@@ -48,12 +48,18 @@ ambiguous feedback → stay state, ask clarify, no regen.
 = source of truth nội dung. Full series scenario trước khi gen bất kỳ clip nào.
 clip fields: clip_id, objective, cast[], action, environment, camera{shot,movement}, mood, narration_mapping, ui{required,assets}, branding{required,assets}, generation{identity_precision, motion_complexity}
 
-## CAST
-registry: cast_id{file, role, identity_lock(low/med/high), approved(bool), reused_from(optional)}
-mapping: clip_id -> [cast_id...]
-validate: scenario.cast == mapping.cast, all assets exist, approved==true → else PREFLIGHT FAIL
-image read: chỉ lấy fact thật (subject/face/outfit/scene/logo/text/color). KHÔNG invent face/clothing/logo/env/identity.
-missing cast: generate → CAST QC → USER APPROVE → usable. Never gen video với cast chưa approve.
+## CAST IMAGE GENERATION
+- Áp dụng ANTI-TEXT LOCK cho cast image generation: không mã hex, không text, 
+  không logo, không brand name, không signage, không số hiển thị trên áo/nền.
+- Màu sắc brand (primary/secondary) chỉ dùng tone mô tả (xanh dương, xanh cyan),
+  KHÔNG viết mã hex (#0066CC, #23C1F5) vào prompt gen.
+- Không dùng ảnh search/image_search có sẵn logo/text của hãng khác (VCA, 
+  INTERNATIONAL CLINIC, v.v.) làm cast reference. Nếu search ra ảnh có logo lạ → 
+  reject, gen lại từ đầu.
+- Đồng phục nhân viên: mô tả bằng từ ngữ đơn giản ("áo blouse trắng, đồng phục 
+  xanh dương"), không ghi mã màu, không yêu cầu logo trên áo.
+- Phòng khám nền: tường sạch, trống, không poster, không biển hiệu, không chữ.
+- Mô tả cast role trong cast_registry cũng KHÔNG chứa mã hex.
 
 ## ASSETS
 reference: cast only
@@ -83,8 +89,14 @@ Pipeline: t2v audio → MUTE → vi male TTS → BGM.
 ## UI/LOGO POLICY
 Gen: physical device + blank gradient screen only. Post: motion-track + overlay real asset (vms_mobile.png / vms_pc.png / logo).
 
-## BRAND
-primary #0066CC, secondary #23C1F5. Font: Roboto/Inter/Be Vietnam Pro. Logo gen forbidden, post only.
+## BRAND COLOR — USAGE RULE
+- Mã hex `#0066CC` / `#23C1F5` là thông tin nội bộ, chỉ dùng cho:
+  • post_overlay (UI, logo, subtitle color)
+  • QC check màu sắc output
+  • hướng dẫn designer/kỹ thuật
+- TUYỆT ĐỐI KHÔNG đưa mã hex vào prompt gen image/video. Chỉ dùng tone mô tả:
+  "blue", "deep blue", "light blue", "cyan" tùy ngữ cảnh.
+- Vi phạm → AI in mã hex lên áo/tường → PREFLIGHT FAIL, cần gen lại.
 
 ---
 
@@ -104,7 +116,8 @@ List thật assets/cast/*, assets/ui/*, assets/logo/* trên disk — KHÔNG suy 
 Cross-check: mọi cast_registry[*].file, ui_assets[*].file (vms_mobile.png/vms_pc.png), brand.logo file phải thật sự có trong 3 thư mục trên.
 Mismatch (claim có nhưng disk không có) → PREFLIGHT FAIL, fail_reason = "asset referenced nhưng không tồn tại trên disk: {filename}".
 Field `approved: true` / `file: xxx.png` trong yaml chỉ là claim, không phải bằng chứng — assets_ready chỉ = true sau khi discovery confirm.
-
+Cast image VISUAL CHECK: dùng visual_recognition kiểm tra từng ảnh cast có logo/text/
+mã hex/brand lạ không. Nếu có → PREFLIGHT FAIL, fail_reason cụ thể, yêu cầu gen lại.
 ## PREFLIGHT (before every gen call)
 check: asset_discovery đã pass (bắt buộc trước), scenario.approved, cast.mapping_valid+assets_ready+approval_valid, ui/logo ready if required, mode_selected+conflict_resolved, ratio=9:16, duration=8, prompt.english_only+anti_text_lock+audio_lock+cast_mapping_present, post.narration_separated+audio_discarded
 FAIL → fail_reason required → NO API CALL → BLOCKED
